@@ -15,10 +15,13 @@ const Net = (() => {
   "use strict";
 
   // Public MQTT-over-WebSocket brokers. No account needed.
+  // The first one uses the normal HTTPS port (443), so it works on school and work
+  // networks that block unusual ports. The others are extra backups.
   // You can override these with ?broker=wss://your-broker/mqtt (repeatable).
   const DEFAULT_BROKERS = [
-    "wss://broker.emqx.io:8084/mqtt",
-    "wss://broker.hivemq.com:8884/mqtt",
+    { url: "wss://public.cloud.shiftr.io", username: "public", password: "public" },
+    { url: "wss://broker.emqx.io:8084/mqtt" },
+    { url: "wss://broker.hivemq.com:8884/mqtt" },
   ];
   const TOPIC_PREFIX = "wikispeedrun/v1/";
   const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 32 chars, no 0/O/1/I
@@ -29,7 +32,7 @@ const Net = (() => {
 
   function brokers() {
     const custom = new URLSearchParams(location.search).getAll("broker")
-      .filter((u) => /^wss?:\/\//.test(u));
+      .filter((u) => /^wss?:\/\//.test(u)).map((url) => ({ url }));
     return custom.length ? custom : DEFAULT_BROKERS;
   }
 
@@ -96,8 +99,9 @@ const Net = (() => {
       const urls = brokers();
       const report = () => this.onStatus(this.connectedCount(), urls.length);
 
-      this.clients = urls.map((url) => {
+      this.clients = urls.map(({ url, username, password }) => {
         const c = mqtt.connect(url, {
+          ...(username ? { username, password } : {}),
           clientId: "wsr_" + randomId(),
           clean: true,
           keepalive: 30,
