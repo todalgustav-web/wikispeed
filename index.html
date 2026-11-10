@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wiki Speedrun</title>
+  <meta name="description" content="Race your friends from one Wikipedia article to another using only links. No sign-up. Open source." />
+  <meta name="referrer" content="no-referrer" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏁</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ========== MENU ========== -->
+  <section id="menu" class="screen active">
+    <header class="hero">
+      <h1>🏁 Wiki Speedrun</h1>
+      <p>Race from one Wikipedia article to another using only the links in the articles. Play solo or against friends. No sign-up needed.</p>
+    </header>
+
+    <div class="card">
+      <div class="row">
+        <label for="nickname">Your nickname</label>
+        <input id="nickname" maxlength="20" placeholder="Nickname" autocomplete="off" />
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>👥 Multiplayer</h2>
+      <div class="mp-actions">
+        <button id="btn-create" class="primary big">Create room</button>
+        <div class="join">
+          <input id="join-code" maxlength="6" placeholder="ROOM CODE" autocomplete="off" spellcheck="false" />
+          <button id="btn-join" class="primary">Join</button>
+        </div>
+      </div>
+      <p class="muted small">🔒 Players never connect to each other directly, so nobody in the room can see your IP address. Messages are encrypted with the room code.</p>
+      <p id="mp-error" class="error" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>🧍 Solo</h2>
+      <div class="row">
+        <label for="lang">Wikipedia language</label>
+        <select id="lang" class="lang-select"></select>
+      </div>
+      <div class="modes">
+        <button id="btn-daily" class="mode">
+          <span class="mode-title">📅 Daily challenge</span>
+          <span class="mode-sub" id="daily-sub">Same route for everyone today</span>
+        </button>
+        <button id="btn-random" class="mode">
+          <span class="mode-title">🎲 Random</span>
+          <span class="mode-sub">Two random articles</span>
+        </button>
+      </div>
+      <details>
+        <summary>✏️ Custom route</summary>
+        <div class="custom">
+          <label>Start
+            <input id="custom-start" list="suggest-start" placeholder="e.g. Pizza" autocomplete="off" />
+          </label>
+          <label>Target
+            <input id="custom-target" list="suggest-target" placeholder="e.g. Moon" autocomplete="off" />
+          </label>
+          <button id="btn-custom" class="primary">Start</button>
+        </div>
+      </details>
+      <p id="menu-error" class="error" hidden></p>
+    </div>
+
+    <div class="card">
+      <h2>Your best solo runs</h2>
+      <ol id="history" class="history"></ol>
+      <p id="history-empty" class="muted">No runs yet. Go play!</p>
+    </div>
+
+    <div class="card rules">
+      <h2>Rules</h2>
+      <ul>
+        <li>Only click links inside the article body.</li>
+        <li>No search, no Ctrl+F (honor system 😇).</li>
+        <li>The ← Back button is allowed but counts as a click.</li>
+        <li>Your clock starts when the first article has loaded.</li>
+      </ul>
+    </div>
+
+    <footer class="footer">
+      Open source · Content from <a href="https://www.wikipedia.org" target="_blank" rel="noopener">Wikipedia</a> under
+      <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>
+    </footer>
+  </section>
+
+  <!-- ========== SOLO PREVIEW ========== -->
+  <section id="preview" class="screen">
+    <div class="card center-card">
+      <h2>Your route</h2>
+      <div class="route">
+        <div class="route-end"><span class="label">Start</span><strong id="pv-start"></strong></div>
+        <span class="arrow">→</span>
+        <div class="route-end"><span class="label">Target</span><strong id="pv-target"></strong></div>
+      </div>
+      <div class="target-info">
+        <img id="pv-img" alt="" hidden />
+        <p id="pv-extract" class="muted"></p>
+      </div>
+      <div class="actions">
+        <button id="btn-go" class="primary big">Go! ⏱️</button>
+        <button id="btn-cancel">Back to menu</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== LOBBY ========== -->
+  <section id="lobby" class="screen">
+    <div class="card center-card">
+      <span class="label">Room code</span>
+      <div id="lobby-code" class="room-code"></div>
+      <div class="actions">
+        <button id="btn-copy-code">📋 Copy code</button>
+        <button id="btn-copy-invite">🔗 Copy invite link</button>
+        <button id="btn-leave">Leave room</button>
+      </div>
+      <p id="net-status" class="muted small"></p>
+      <p id="copied-lobby" class="muted small" hidden>Copied!</p>
+    </div>
+
+    <div class="lobby-grid">
+      <div class="card">
+        <h2>Players <span id="player-count" class="muted"></span></h2>
+        <ol id="lobby-players" class="board"></ol>
+      </div>
+
+      <div class="card">
+        <h2>Route</h2>
+        <div id="host-controls" hidden>
+          <div class="row">
+            <label for="lobby-lang">Language</label>
+            <select id="lobby-lang" class="lang-select"></select>
+          </div>
+          <div class="actions left">
+            <button id="lobby-daily">📅 Daily</button>
+            <button id="lobby-random">🎲 Random</button>
+          </div>
+          <details>
+            <summary>✏️ Custom</summary>
+            <div class="custom stacked">
+              <input id="lobby-start" list="suggest-lobby-start" placeholder="Start article" autocomplete="off" />
+              <input id="lobby-target" list="suggest-lobby-target" placeholder="Target article" autocomplete="off" />
+              <button id="lobby-custom">Set route</button>
+            </div>
+          </details>
+        </div>
+
+        <div id="lobby-route" class="route compact" hidden>
+          <div class="route-end"><span class="label">Start</span><strong id="lr-start"></strong></div>
+          <span class="arrow">→</span>
+          <div class="route-end"><span class="label">Target</span><strong id="lr-target"></strong></div>
+        </div>
+        <div class="target-info">
+          <img id="lr-img" alt="" hidden />
+          <p id="lr-extract" class="muted small"></p>
+        </div>
+        <p id="lobby-error" class="error" hidden></p>
+
+        <div class="actions">
+          <button id="btn-start-race" class="primary big" hidden>Start race 🏁</button>
+          <button id="btn-jump-in" class="primary big" hidden>Jump into the race 🏃</button>
+        </div>
+        <p id="lobby-wait" class="muted center"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== GAME ========== -->
+  <section id="game" class="screen">
+    <div class="hud">
+      <div class="hud-item"><span class="label">Target</span><strong id="hud-target"></strong></div>
+      <div class="hud-item"><span class="label">Time</span><strong id="hud-time">0:00.0</strong></div>
+      <div class="hud-item"><span class="label">Clicks</span><strong id="hud-clicks">0</strong></div>
+      <div class="hud-buttons">
+        <button id="btn-back" title="Go back (counts as a click)">← Back</button>
+        <button id="btn-quit">Give up</button>
+      </div>
+    </div>
+    <ol id="path" class="path"></ol>
+    <div class="game-layout">
+      <article id="article" class="article">
+        <h1 id="article-title"></h1>
+        <div id="article-body"></div>
+      </article>
+      <aside id="race-side" class="card race-side" hidden>
+        <h2>Race</h2>
+        <ol id="race-board" class="board"></ol>
+      </aside>
+    </div>
+    <div id="loading" class="toast" hidden>Loading…</div>
+  </section>
+
+  <!-- ========== SOLO WIN ========== -->
+  <section id="win" class="screen">
+    <div class="card center-card">
+      <h1>🎉 You made it!</h1>
+      <div class="stats">
+        <div><span class="label">Time</span><strong id="win-time"></strong></div>
+        <div><span class="label">Clicks</span><strong id="win-clicks"></strong></div>
+      </div>
+      <ol id="win-path" class="path vertical"></ol>
+      <div class="actions">
+        <button id="btn-share" class="primary">📋 Copy result</button>
+        <button id="btn-menu">Menu</button>
+      </div>
+      <p id="copied" class="muted" hidden>Copied!</p>
+    </div>
+  </section>
+
+  <!-- ========== MULTIPLAYER RESULTS ========== -->
+  <section id="results" class="screen">
+    <div class="card center-card">
+      <h1 id="results-title">🏁 Results</h1>
+      <p id="results-sub" class="muted"></p>
+      <ol id="results-board" class="board big-board"></ol>
+      <ol id="results-path" class="path vertical"></ol>
+      <div class="actions">
+        <button id="btn-new-race" class="primary" hidden>New race</button>
+        <button id="btn-results-leave">Leave room</button>
+      </div>
+      <p id="results-wait" class="muted small"></p>
+    </div>
+  </section>
+
+  <div id="countdown" class="countdown" hidden><span id="countdown-num">3</span></div>
+
+  <datalist id="suggest-start"></datalist>
+  <datalist id="suggest-target"></datalist>
+  <datalist id="suggest-lobby-start"></datalist>
+  <datalist id="suggest-lobby-target"></datalist>
+
+  <script src="lib/mqtt.min.js"></script>
+  <script src="net.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
